@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#f5f5f7">
+  <title>同名版本审查表 | 陈奕迅冠军杯</title>
+  <link rel="stylesheet" href="version-review.css">
+</head>
+<body>
+  <header class="review-topbar">
+    <a class="review-brand" href="index.html"><span>E</span><strong>版本审查表</strong></a>
+    <div class="top-actions"><button class="quiet-button" id="resetReview">重置选择</button><button class="primary-button" id="exportReview">导出结果</button></div>
+  </header>
+  <main class="review-main">
+    <section class="review-heading"><div><p class="eyebrow">DUPLICATE VERSION REVIEW</p><h1>同一首歌，不同版本</h1></div><a class="back-link" href="index.html">返回冠军杯</a></section>
+    <section class="review-stats" aria-label="审查统计"><div><strong id="groupCount">0</strong><span>组同名歌曲</span></div><div><strong id="versionCount">0</strong><span>个待审版本</span></div><div><strong id="excludedCount">0</strong><span>个已排除</span></div></section>
+    <section class="review-toolbar">
+      <input id="reviewSearch" type="search" placeholder="搜索歌曲、专辑或 Track ID" aria-label="搜索同名版本">
+      <div class="filter-control" id="reviewFilters" role="group" aria-label="版本分组筛选"><button class="active" data-filter="all">全部</button><button data-filter="mixed">录音室 / 现场</button><button data-filter="same-album">同专辑重复</button><button data-filter="excluded">已做排除</button></div>
+    </section>
+    <div class="review-list" id="reviewList"></div>
+  </main>
+  <div class="toast" id="reviewToast" role="status" aria-live="polite"></div><audio id="reviewAudio" preload="none"></audio>
+  <script src="music-data.js"></script><script src="spotify-catalog.js"></script><script src="spotify-media.js"></script><script src="track-previews.js"></script><script src="review-exclusions.js"></script><script src="version-review-decisions.js"></script><script src="version-review.js"></script>
+</body>
+</html>

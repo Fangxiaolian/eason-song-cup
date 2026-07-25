@@ -1,0 +1,14 @@
+# Personal voting exports and review decisions
+eason-*-voting-record.json
+eason-version-review*.json
+
+# Local agent metadata and build utilities
+.agents/
+.codex/
+tools/
+
+# OS and editor files
+.DS_Store
+Thumbs.db
+desktop.ini
+*.log
