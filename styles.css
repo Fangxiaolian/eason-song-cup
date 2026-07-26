@@ -42,7 +42,7 @@ svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width:
   backdrop-filter: saturate(180%) blur(20px);
 }
 .brand { display: inline-flex; align-items: center; gap: 9px; width: max-content; color: inherit; text-decoration: none; font-size: 18px; font-weight: 650; }
-.brand-mark { display: grid; place-items: center; width: 25px; height: 25px; border-radius: 6px; color: #fff; background: var(--ink); font-size: 15px; font-weight: 700; }
+.brand-logo { width: 32px; height: 32px; flex: 0 0 auto; border-radius: 50%; object-fit: cover; background: #000; }
 .view-tabs { display: flex; align-items: center; gap: 30px; }
 .tab-button, .mode-button { border: 0; background: transparent; cursor: pointer; }
 .tab-button { padding: 16px 0 14px; color: var(--secondary); font-size: 12px; }
@@ -54,6 +54,8 @@ svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width:
 .icon-button:disabled { opacity: .28; cursor: not-allowed; }
 
 main { min-height: calc(100vh - 52px); }
+.site-footer { display: flex; justify-content: center; gap: 28px; padding: 24px max(22px, calc((100vw - 1120px) / 2)); border-top: 1px solid var(--line); color: var(--secondary); background: var(--surface); font-size: 12px; text-align: center; }
+.site-footer p { margin: 0; }
 .view { display: none; }
 .view.active { display: block; }
 
@@ -204,6 +206,9 @@ main { min-height: calc(100vh - 52px); }
 }
 
 @media (max-width: 560px) {
+  .brand { font-size: 14px; }
+  .brand-logo { width: 30px; height: 30px; }
+  .site-footer { flex-direction: column; gap: 7px; padding-block: 20px; }
   .brand > span:last-child { font-size: 16px; }
   .toolbar { gap: 3px; }
   .setup-screen { grid-template-rows: auto 260px; gap: 18px; padding: 42px 16px 0; }

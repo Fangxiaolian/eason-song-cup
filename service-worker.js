@@ -1,4 +1,4 @@
-const CACHE_NAME = "eason-cup-shell-v4";
+const CACHE_NAME = "eason-cup-shell-v6";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -13,6 +13,8 @@ const APP_SHELL = [
   "./review-exclusions.js",
   "./version-review-decisions.js",
   "./assets/site-qr.png",
+  "./assets/branding/result-poster-background.jpg",
+  "./assets/branding/ningbo-ef-logo-square.png",
   "./assets/eason-bilibili-cover.png"
 ];
 

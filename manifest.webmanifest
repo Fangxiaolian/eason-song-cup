@@ -9,8 +9,8 @@
   "description": "从陈奕迅不同歌曲和版本中选出属于自己的冠军。",
   "icons": [
     {
-      "src": "assets/eason-bilibili-cover.png",
-      "sizes": "512x512",
+      "src": "assets/branding/ningbo-ef-logo-square.png",
+      "sizes": "860x860",
       "type": "image/png"
     }
   ]

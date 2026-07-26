@@ -1254,7 +1254,10 @@ updateResumeButton();
 if (typeof navigator !== "undefined" && "serviceWorker" in navigator && /^https?:$/.test(window.location?.protocol || "")) {
   window.addEventListener("load", () => navigator.serviceWorker.register("./service-worker.js").catch(() => {}));
 }
-if (/^(127\.0\.0\.1|localhost)$/.test(window.location?.hostname || "") && /(?:^|[?&])posterTest=1(?:&|$)/.test(window.location?.search || "")) {
+const isLocalPosterTest = /^(127\.0\.0\.1|localhost)$/.test(window.location?.hostname || "") && /(?:^|[?&])posterTest=1(?:&|$)/.test(window.location?.search || "");
+const isInternalPosterTest = /(?:^|[?&])internal=poster(?:&|$)/.test(window.location?.search || "");
+if (isLocalPosterTest || isInternalPosterTest) {
+  if (isInternalPosterTest) document.title = "结果图内测 | 陈奕迅私人冠军杯";
   state = createTournament("balanced");
   let posterTestGuard = 0;
   while (!state.championId && posterTestGuard < 1000) {

@@ -102,21 +102,21 @@ function posterConnector(context, fromX, fromY, toX, toY, highlighted = false) {
   context.stroke();
 }
 
-function drawPosterBackground(context, width, height) {
-  const gradient = context.createLinearGradient(0, 0, width, height);
-  gradient.addColorStop(0, "#170d24");
-  gradient.addColorStop(.34, "#09090f");
-  gradient.addColorStop(1, "#09090e");
-  context.fillStyle = gradient;
+function drawPosterBackground(context, image, width, height) {
+  context.fillStyle = "#080706";
   context.fillRect(0, 0, width, height);
-  context.fillStyle = "rgba(179, 79, 255, .08)";
-  context.beginPath(); context.arc(160, 210, 360, 0, Math.PI * 2); context.fill();
-  context.fillStyle = "rgba(255, 255, 255, .035)";
-  for (let index = 0; index < 180; index += 1) {
-    const x = (index * 173) % width;
-    const y = (index * 307) % height;
-    context.fillRect(x, y, index % 3 === 0 ? 2 : 1, index % 3 === 0 ? 2 : 1);
+  if (image) {
+    const scale = Math.max(width / image.naturalWidth, height / image.naturalHeight);
+    const drawWidth = image.naturalWidth * scale;
+    const drawHeight = image.naturalHeight * scale;
+    context.drawImage(image, (width - drawWidth) / 2, (height - drawHeight) / 2, drawWidth, drawHeight);
   }
+  const shade = context.createLinearGradient(0, 0, 0, height);
+  shade.addColorStop(0, "rgba(4, 3, 2, .58)");
+  shade.addColorStop(.45, "rgba(5, 4, 3, .68)");
+  shade.addColorStop(1, "rgba(4, 3, 3, .82)");
+  context.fillStyle = shade;
+  context.fillRect(0, 0, width, height);
 }
 
 function drawPosterHeader(context) {
@@ -272,11 +272,12 @@ async function createResultPosterBlob() {
   }));
   const images = new Map(imageEntries);
   const qrImage = await posterImage("assets/site-qr.png");
+  const backgroundImage = await posterImage("assets/branding/result-poster-background.jpg");
   const canvas = document.createElement("canvas");
   canvas.width = RESULT_POSTER_SIZE.width;
   canvas.height = RESULT_POSTER_SIZE.height;
   const context = canvas.getContext("2d");
-  drawPosterBackground(context, canvas.width, canvas.height);
+  drawPosterBackground(context, backgroundImage, canvas.width, canvas.height);
   drawPosterHeader(context);
   drawPosterBracket(context, images, rounds);
   drawPosterChampion(context, images, story);
@@ -286,6 +287,7 @@ async function createResultPosterBlob() {
     width: canvas.width,
     height: canvas.height,
     qrLoaded: Boolean(qrImage),
+    backgroundLoaded: Boolean(backgroundImage),
     coversLoaded: [...images.values()].filter(Boolean).length,
     coversRequested: images.size
   };
