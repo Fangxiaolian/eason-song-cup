@@ -816,7 +816,7 @@ function deezerJsonp(url) {
 
 async function resolveFallbackPreview(song) {
   if (fallbackPreviewCache.has(song.id)) return fallbackPreviewCache.get(song.id);
-  if (persistentPreviewCache.has(song.id)) return persistentPreviewCache.get(song.id);
+  if (persistentPreviewCache.has(song.id)) return applyResolvedPreview(song, persistentPreviewCache.get(song.id));
   const promise = (async () => {
     const apple = await resolveAppleSearchPreview(song);
     if (apple) return apple;
@@ -829,6 +829,7 @@ async function resolveFallbackPreview(song) {
     const match = (payload.data || []).map(candidate => ({ candidate, score: deezerScore(candidate, song) })).filter(item => item.score >= 100).sort((a, b) => b.score - a.score)[0];
     return match ? { url: match.candidate.preview, source: "deezer" } : null;
   })().then(result => {
+    applyResolvedPreview(song, result);
     if (result?.source === "apple-search") {
       persistentPreviewCache.set(song.id, result);
       try { localStorage.setItem(RESOLVED_PREVIEW_CACHE_KEY, JSON.stringify(Object.fromEntries(persistentPreviewCache))); }
@@ -840,6 +841,14 @@ async function resolveFallbackPreview(song) {
   return promise;
 }
 
+function applyResolvedPreview(song, resolved) {
+  if (!resolved?.url) return null;
+  song.preview = resolved.url;
+  song.previewSource = resolved.source || song.previewSource;
+  if (resolved.storeUrl) song.previewStoreUrl = resolved.storeUrl;
+  return resolved;
+}
+
 function prepareFallbackPreviews(songIds) {
   if (!document.head) return;
   songIds.map(id => songById.get(id)).filter(song => song && !song.preview).forEach(async song => {
@@ -847,7 +856,12 @@ function prepareFallbackPreviews(songIds) {
     const button = $(`#groupGrid .preview-button[data-song-id="${song.id}"]`);
     if (!button) return;
     if (!resolved) {
-      button.outerHTML = `<span class="preview-unavailable">暂无试听</span>`;
+      fallbackPreviewCache.delete(song.id);
+      button.disabled = false;
+      button.dataset.label = "重试试听";
+      button.querySelector("span").textContent = "重试试听";
+      button.setAttribute("aria-label", `重新匹配并试听：${song.title}`);
+      button.title = "试听源响应较慢，点击可重新匹配";
       return;
     }
     const sourceNames = {
@@ -898,8 +912,10 @@ async function togglePreview(button) {
     button.disabled = false;
     if (!resolved) {
       fallbackPreviewCache.delete(song.id);
-      button.querySelector("span").textContent = "暂无试听";
-      button.setAttribute("aria-label", `暂未找到试听：${song.title}`);
+      button.dataset.label = "重试试听";
+      button.querySelector("span").textContent = "重试试听";
+      button.setAttribute("aria-label", `重新匹配并试听：${song.title}`);
+      button.title = "试听源响应较慢，点击可重新匹配";
       return;
     }
     button.dataset.preview = resolved.url;
