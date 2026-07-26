@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#f5f5f7">
+  <link rel="manifest" href="manifest.webmanifest">
   <title>陈奕迅 387 | 私人冠军杯</title>
   <link rel="stylesheet" href="styles.css">
 </head>
@@ -70,7 +71,7 @@
           <div class="champion-art"><img id="championCover" src="assets/covers/1831490372.jpg" alt="冠军歌曲封面"><span class="champion-ring"></span><span class="champion-number">01</span></div>
           <div class="champion-copy">
             <p class="eyebrow">YOUR EASON CHAMPION</p><h2 id="championTitle"></h2><p id="championPath" class="champion-path"></p>
-            <div class="champion-actions"><button class="primary-button" id="copyButton">复制冠军结果</button><button class="secondary-button" id="downloadSummaryButton">下载总结</button><button class="secondary-button" id="playAgainButton">再选一次</button></div>
+            <div class="champion-actions"><button class="primary-button" id="copyButton">复制冠军结果</button><button class="secondary-button" id="downloadSummaryButton">生成结果图</button><button class="secondary-button" id="playAgainButton">再选一次</button></div>
             <div class="finalists" id="finalists"></div>
           </div>
         </div>
@@ -87,7 +88,7 @@
           <div class="summary-heading"><div><p class="eyebrow">YOUR VOTING STORY</p><h3 id="summaryTitle">你的选择，全部有迹可循。</h3></div><p>从版本预选到最后一票，按阶段回看你保留和淘汰的每一首歌。</p></div>
           <div class="summary-stats" id="summaryStats"></div>
           <div class="summary-highlight" id="summaryHighlight"></div>
-          <div class="summary-toolbar"><div class="filter-pills" id="summaryFilters"></div><button class="secondary-button" id="exportVotesButton">导出完整记录</button></div>
+          <div class="summary-toolbar"><div class="filter-pills" id="summaryFilters"></div><button class="secondary-button hidden" id="exportVotesButton">导出完整记录</button></div>
           <div class="vote-timeline" id="voteTimeline"></div>
         </section>
       </div>
@@ -119,7 +120,25 @@
       <p class="disclaimer">平台热度只用于选入曲库，不在游戏中显示名次或伪精确分数。歌曲、封面与试听版权归原权利人所有。</p>
     </section>
   </main>
+  <div class="result-poster-modal hidden" id="resultPosterModal" role="dialog" aria-modal="true" aria-labelledby="resultPosterTitle">
+    <div class="result-poster-dialog">
+      <div class="result-poster-head">
+        <div><p class="eyebrow">SHARE YOUR CHAMPION</p><h2 id="resultPosterTitle">保存你的冠军之路</h2></div>
+        <button class="poster-close-button" id="closePosterButton" type="button" aria-label="关闭结果图预览">×</button>
+      </div>
+      <div class="result-poster-stage" id="resultPosterStage" aria-live="polite">
+        <div class="poster-generating" id="posterGenerating"><span></span><strong>正在生成高清结果图</strong><p>封面、32强路径和固定网站二维码正在合成。</p></div>
+        <img class="result-poster-preview hidden" id="resultPosterPreview" alt="个人冠军杯结果图">
+      </div>
+      <p class="poster-mobile-hint" id="posterMobileHint">手机可使用系统分享；在微信或QQ内无法下载时，可长按上方图片保存。</p>
+      <div class="result-poster-actions">
+        <button class="primary-button" id="sharePosterButton" type="button" disabled>分享图片</button>
+        <button class="secondary-button" id="savePosterButton" type="button" disabled>保存图片</button>
+        <button class="secondary-button" id="cancelPosterButton" type="button">返回总结</button>
+      </div>
+    </div>
+  </div>
   <div class="toast" id="toast" role="status" aria-live="polite"></div><audio id="previewAudio" preload="none"></audio>
-  <script src="music-data.js"></script><script src="spotify-catalog.js"></script><script src="spotify-media.js"></script><script src="track-previews.js"></script><script src="review-exclusions.js"></script><script src="version-review-decisions.js"></script><script src="app.js"></script>
+  <script src="music-data.js"></script><script src="spotify-catalog.js"></script><script src="spotify-media.js"></script><script src="track-previews.js"></script><script src="review-exclusions.js"></script><script src="version-review-decisions.js"></script><script src="result-poster.js"></script><script src="app.js"></script>
 </body>
 </html>

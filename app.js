@@ -358,6 +358,7 @@ function loadState() {
 }
 
 function startTournament(mode = selectedMode) {
+  window.resetResultPoster?.();
   try {
     state = createTournament(mode);
   } catch (error) {
@@ -1167,6 +1168,7 @@ function switchView(view) {
 function resetTournament() {
   if (state?.decisions?.length && !window.confirm("保留的赛后档案不会被上传。确定清除当前赛程并重新开始？")) return;
   stopPreview();
+  window.resetResultPoster?.();
   localStorage.removeItem(STORAGE_KEY);
   state = null;
   selectedSongId = null;
@@ -1212,7 +1214,7 @@ function bindEvents() {
   $("#restartButton").addEventListener("click", resetTournament);
   $("#playAgainButton").addEventListener("click", resetTournament);
   $("#copyButton").addEventListener("click", copyResult);
-  $("#downloadSummaryButton").addEventListener("click", downloadSummaryImage);
+  $("#downloadSummaryButton").addEventListener("click", () => window.openResultPoster?.());
   $("#exportVotesButton").addEventListener("click", exportVotes);
   $(".brand").addEventListener("click", event => { event.preventDefault(); switchView("game"); });
   $("#librarySearch").addEventListener("input", renderLibrary);
@@ -1230,4 +1232,22 @@ function updateCatalogLabels() {
 
 updateCatalogLabels();
 bindEvents();
+window.bindResultPosterControls?.();
+if (/(?:^|[?&])internal=1(?:&|$)/.test(window.location?.search || "")) $("#exportVotesButton").classList.remove("hidden");
 updateResumeButton();
+if (typeof navigator !== "undefined" && "serviceWorker" in navigator && /^https?:$/.test(window.location?.protocol || "")) {
+  window.addEventListener("load", () => navigator.serviceWorker.register("./service-worker.js").catch(() => {}));
+}
+if (/^(127\.0\.0\.1|localhost)$/.test(window.location?.hostname || "") && /(?:^|[?&])posterTest=1(?:&|$)/.test(window.location?.search || "")) {
+  state = createTournament("balanced");
+  let posterTestGuard = 0;
+  while (!state.championId && posterTestGuard < 1000) {
+    const contest = currentContest();
+    const decision = recordDecision(contest, contest.songIds[0]);
+    advancePhase(decision);
+    posterTestGuard += 1;
+  }
+  showScreen("champion");
+  renderChampion();
+  window.openResultPoster?.();
+}
