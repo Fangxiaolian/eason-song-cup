@@ -163,7 +163,7 @@ async function handleAnalyze(request, env, origin) {
         ],
         thinking: { type: "enabled" },
         reasoning_effort: "high",
-        max_tokens: 8000,
+        max_tokens: 16000,
         stream: false
       })
     });
