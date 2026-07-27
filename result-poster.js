@@ -329,7 +329,7 @@ function drawPosterAnalysis(context, analysis) {
   const accent = "#a65cff";
   context.fillStyle = accent;
   context.font = posterFont(800, 17);
-  context.fillText("DEEPSEEK 赛后解析", x, y + 22);
+  context.fillText("DEEPSEEK PRO 赛后解析", x, y + 22);
   context.fillStyle = "#f7f5fa";
   posterDrawFittedText(context, analysis.headline, x, y + 76, { maxWidth: 560, maxLines: 1, fontSize: 34, minFontSize: 24, weight: 800 });
   context.fillStyle = "#aaa6b1";
@@ -515,7 +515,7 @@ function drawEditorialPosterAnalysis(context, analysis) {
   context.stroke();
   context.fillStyle = "#ff5064";
   context.font = posterFont(800, 17);
-  context.fillText("DEEPSEEK 赛后解析", x, y + 45);
+  context.fillText("DEEPSEEK PRO 赛后解析", x, y + 45);
   context.fillStyle = "#f7f4f0";
   posterDrawFittedText(context, analysis.headline, x, y + 105, {
     maxWidth: 560,
@@ -533,7 +533,40 @@ function drawEditorialPosterAnalysis(context, analysis) {
     weight: 500
   });
 
+  const comparisons = Array.isArray(analysis.comparisons) ? analysis.comparisons.slice(0, 6) : [];
   const columnWidth = 390;
+  if (comparisons.length) {
+    comparisons.forEach((comparison, index) => {
+      const column = index % 3;
+      const row = Math.floor(index / 3);
+      const columnX = x + column * 432;
+      const itemY = y + 190 + row * 154;
+      if (row) {
+        context.strokeStyle = "rgba(255, 255, 255, .12)";
+        context.beginPath(); context.moveTo(columnX, itemY - 18); context.lineTo(columnX + columnWidth, itemY - 18); context.stroke();
+      }
+      context.fillStyle = "#ff6073";
+      context.font = posterFont(800, 13);
+      context.fillText(`0${index + 1}  ·  关键对比`, columnX, itemY);
+      context.fillStyle = "#f2eff3";
+      posterDrawFittedText(context, comparison.matchup, columnX, itemY + 38, {
+        maxWidth: columnWidth,
+        maxLines: 2,
+        fontSize: 17,
+        minFontSize: 13,
+        weight: 750
+      });
+      context.fillStyle = "#aaa6ae";
+      posterDrawFittedText(context, comparison.insight, columnX, itemY + 86, {
+        maxWidth: columnWidth,
+        maxLines: 3,
+        fontSize: 14,
+        minFontSize: 11,
+        weight: 500
+      });
+    });
+    return;
+  }
   analysis.observations.slice(0, 3).forEach((observation, index) => {
     const columnX = x + index * 432;
     const itemY = y + 195;

@@ -87,10 +87,10 @@
         </section>
         <section class="ai-analysis" aria-labelledby="aiAnalysisTitle">
           <div class="ai-analysis-heading">
-            <div><p class="eyebrow">DEEPSEEK 赛后解析</p><h3 id="aiAnalysisTitle">从你的选择里再看一遍</h3></div>
+            <div><p class="eyebrow">DEEPSEEK PRO 赛后解析</p><h3 id="aiAnalysisTitle">从每一次取舍里再看一遍</h3></div>
             <div class="ai-analysis-action">
-              <button class="primary-button" id="analyzeChoicesButton" type="button">生成 DeepSeek 解析</button>
-              <p>只发送冠军、四强和选择偏好的匿名汇总，不发送完整投票记录。</p>
+              <button class="primary-button" id="analyzeChoicesButton" type="button">生成 DeepSeek Pro 解析</button>
+              <p>只发送冠军、四强和 12 场代表性对局的匿名汇总，不发送完整投票记录。</p>
             </div>
           </div>
           <div class="ai-analysis-status" id="aiAnalysisStatus" role="status" aria-live="polite"></div>
@@ -99,6 +99,10 @@
             <h4 id="aiAnalysisHeadline"></h4>
             <p class="ai-analysis-summary" id="aiAnalysisSummary"></p>
             <ol class="ai-analysis-observations" id="aiAnalysisObservations"></ol>
+            <section class="ai-analysis-comparisons hidden" id="aiAnalysisComparisonsWrap" aria-labelledby="aiAnalysisComparisonsTitle">
+              <p class="ai-analysis-comparisons-title" id="aiAnalysisComparisonsTitle">关键歌曲对比</p>
+              <div id="aiAnalysisComparisons"></div>
+            </section>
             <p class="ai-analysis-closing" id="aiAnalysisClosing"></p>
           </article>
         </section>

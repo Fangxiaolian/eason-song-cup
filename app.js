@@ -1027,6 +1027,27 @@ function buildChoiceProfile() {
     versionPreference[edition === "live" || edition === "studio" ? edition : "other"] += 1;
   });
 
+  const decisionGroups = [
+    [...state.decisions].filter(decision => ["page", "knockout", "shieldCross"].includes(decision.phase)).reverse(),
+    [...state.decisions].filter(decision => decision.loserIds.length).sort((left, right) => right.durationMs - left.durationMs),
+    [...state.decisions].filter(decision => decision.winnerId === state.championId).reverse(),
+    [...state.decisions].filter(decision => decision.phase === "bilingual").sort((left, right) => right.durationMs - left.durationMs),
+    [...state.decisions].filter(decision => decision.phase === "version").sort((left, right) => right.durationMs - left.durationMs)
+  ];
+  const comparisonKeys = new Set();
+  const keyComparisons = decisionGroups.flat().filter(decision => {
+    if (!decision.loserIds.length) return false;
+    const key = [decision.winnerId, ...decision.loserIds].sort().join("|");
+    if (comparisonKeys.has(key)) return false;
+    comparisonKeys.add(key);
+    return true;
+  }).slice(0, 12).map(decision => ({
+    phase: PHASE_LABELS[decision.phase] || decision.phase,
+    chosen: songProfile(songById.get(decision.winnerId)),
+    eliminated: decision.loserIds.map(id => songProfile(songById.get(id))).filter(song => song.title).slice(0, 3),
+    durationSeconds: Math.round(decision.durationMs / 1000)
+  }));
+
   return {
     champion: songProfile(songById.get(state.championId)),
     finalFour: state.finalFourIds.map(id => songProfile(songById.get(id))),
@@ -1055,7 +1076,8 @@ function buildChoiceProfile() {
         chosen: songById.get(decision.winnerId)?.title || "",
         eliminated: decision.loserIds.map(id => songById.get(id)?.title).filter(Boolean).slice(0, 3),
         durationSeconds: Math.round(decision.durationMs / 1000)
-      }))
+      })),
+    keyComparisons
   };
 }
 
@@ -1064,6 +1086,13 @@ function renderChoiceAnalysis(analysis) {
   $("#aiAnalysisHeadline").textContent = analysis.headline;
   $("#aiAnalysisSummary").textContent = analysis.summary;
   $("#aiAnalysisObservations").innerHTML = analysis.observations.map(item => `<li>${escapeHtml(item)}</li>`).join("");
+  const comparisons = Array.isArray(analysis.comparisons) ? analysis.comparisons : [];
+  $("#aiAnalysisComparisons").innerHTML = comparisons.map(item => `
+    <article>
+      <h5>${escapeHtml(item.matchup)}</h5>
+      <p>${escapeHtml(item.insight)}</p>
+    </article>`).join("");
+  $("#aiAnalysisComparisonsWrap").classList.toggle("hidden", comparisons.length === 0);
   $("#aiAnalysisClosing").textContent = analysis.closing;
   $("#aiAnalysisResult").classList.remove("hidden");
   $("#aiAnalysisStatus").textContent = "解析已生成，并会加入下一张结果图。";
@@ -1075,8 +1104,8 @@ async function analyzeChoices() {
   const button = $("#analyzeChoicesButton");
   analysisRequestPending = true;
   button.disabled = true;
-  button.textContent = "DeepSeek 正在解析";
-  $("#aiAnalysisStatus").textContent = "正在整理匿名选择摘要，通常需要几秒。";
+  button.textContent = "DeepSeek Pro 正在深度解析";
+  $("#aiAnalysisStatus").textContent = "正在梳理关键对局与反复出现的选择倾向，通常需要十几秒。";
   try {
     const response = await fetch(DEEPSEEK_API_ENDPOINT, {
       method: "POST",
@@ -1086,10 +1115,10 @@ async function analyzeChoices() {
     const payload = await response.json().catch(() => ({}));
     if (!response.ok || !payload.analysis) throw new Error(payload.error || "暂时没有拿到解析结果");
     renderChoiceAnalysis(payload.analysis);
-    button.textContent = "重新生成解析";
+    button.textContent = "重新生成 Pro 解析";
   } catch (error) {
     $("#aiAnalysisStatus").textContent = `${error.message}。请稍后再试。`;
-    button.textContent = choiceAnalysis ? "重新生成解析" : "生成 DeepSeek 解析";
+    button.textContent = choiceAnalysis ? "重新生成 Pro 解析" : "生成 DeepSeek Pro 解析";
   } finally {
     analysisRequestPending = false;
     button.disabled = false;
@@ -1290,7 +1319,7 @@ function resetTournament() {
   choiceAnalysis = null;
   $("#aiAnalysisResult").classList.add("hidden");
   $("#aiAnalysisStatus").textContent = "";
-  $("#analyzeChoicesButton").textContent = "生成 DeepSeek 解析";
+  $("#analyzeChoicesButton").textContent = "生成 DeepSeek Pro 解析";
   localStorage.removeItem(STORAGE_KEY);
   state = null;
   selectedSongId = null;
@@ -1383,6 +1412,14 @@ if (isLocalPosterTest || isInternalPosterTest) {
         "录音室版本在版本预选里更常胜出，你更看重熟悉录音本身，而不是现场气氛带来的加成。",
         "最久的几次停顿集中在后程淘汰赛，真正难选的时候，是已经很喜欢的歌正面相遇。",
         "冠军在四强阶段仍连续胜出，说明早期的好感没有被后面的强对手冲淡。"
+      ],
+      comparisons: [
+        { matchup: "《反高潮》胜过《一个旅人》", insight: "到了冠军路径仍留下《反高潮》，说明它不是靠早段签运，而是在强度上升后继续被确认。" },
+        { matchup: "《反高潮》胜过《全世界失眠》", insight: "面对同样进入后程的熟悉作品，你仍把冠军票投给《反高潮》，这场更能代表最终取舍。" },
+        { matchup: "《反高潮》胜过《人车志》", insight: "两首进入最终四强后才分出高下，结果更像是稳定偏好，而不是某一轮的即时犹豫。" },
+        { matchup: "《天下无双》胜过《空城记》", insight: "这组对比停留时间较长，说明淘汰《空城记》并不轻松，也让胜出曲的分量更清楚。" },
+        { matchup: "《K歌之王》胜过另一语言版本", insight: "同源版本相遇时仍有明确选择，语言与熟悉版本会参与判断，但不是唯一标准。" },
+        { matchup: "录音室版胜过现场版", insight: "多组版本预选都出现相同方向，整体记录更偏向作品原貌，而不是演出现场的即时加成。" }
       ],
       closing: "这次冠军，是一路比较后留下的答案。"
     });
