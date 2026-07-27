@@ -13,15 +13,15 @@ const STORAGE_SCHEMA_VERSION = 6;
 const PHASE_LABELS = {
   version: "版本预选",
   preliminary: "三选一海选",
-  bilingual: "国粤审判",
-  gsl: "GSL死亡小组",
+  bilingual: "国粤对决",
+  gsl: "GSL小组赛",
   lcq: "最后机会赛",
   shieldUpper1: "64强胜者区",
-  shieldLower1: "败者区生死战",
+  shieldLower1: "败者区淘汰赛",
   shieldUpper2: "32强胜者区",
   shieldCross: "双败汇合战",
   knockout: "单败淘汰赛",
-  page: "四强Page审判"
+  page: "四强Page赛"
 };
 
 const FALLBACK_COVER = "assets/eason-bilibili-cover.png";
@@ -34,6 +34,7 @@ const METING_API_ENDPOINT = window.METING_API_ENDPOINT || "https://api.i-meto.co
 const METING_SERVERS = ["netease", "tencent", "kugou"];
 const NETEASE_API_ENDPOINT = String(window.NETEASE_API_ENDPOINT || "").replace(/\/$/, "");
 const QQMUSIC_API_ENDPOINT = String(window.QQMUSIC_API_ENDPOINT || "").replace(/\/$/, "");
+const DEEPSEEK_API_ENDPOINT = window.DEEPSEEK_API_ENDPOINT || "https://eason-song-cup.fangxiaolian1115.workers.dev/api/analyze";
 const APPLE_SEARCH_COUNTRIES = ["HK", "TW", "US"];
 const $ = selector => document.querySelector(selector);
 const $$ = selector => [...document.querySelectorAll(selector)];
@@ -44,6 +45,8 @@ let state = null;
 let toastTimer = null;
 let playingButton = null;
 let summaryFilter = "all";
+let choiceAnalysis = null;
+let analysisRequestPending = false;
 const fallbackPreviewCache = new Map();
 
 function comparable(value) {
@@ -114,6 +117,7 @@ const songs = rawCatalog.map(item => {
 }).filter(song => song.edition !== "remaster" && !/instrumental/i.test(song.title) && !reviewExclusions.has(song.id));
 
 const CATALOG_SIZE = songs.length;
+window.EASON_CATALOG_SIZE = CATALOG_SIZE;
 const STORAGE_KEY = `eason-${CATALOG_SIZE}-cup-v${STORAGE_SCHEMA_VERSION}`;
 const RESOLVED_PREVIEW_CACHE_KEY = `eason-${CATALOG_SIZE}-resolved-previews-v1`;
 const persistentPreviewCache = new Map();
@@ -390,7 +394,7 @@ function chooseCard(songId) {
   $$(".group-card").forEach(card => card.classList.toggle("selected", card.dataset.songId === selectedSongId));
   $("#stageSubmit").disabled = !selectedSongId;
   const count = currentContest()?.songIds.length || 2;
-  $("#stageSubmit").textContent = selectedSongId ? `确认保留这一首，淘汰 ${count - 1} 首` : "选出唯一留下的歌";
+  $("#stageSubmit").textContent = selectedSongId ? `留下这首，淘汰其他 ${count - 1} 首` : "选一首留下";
 }
 
 function recordDecision(contest, winnerId) {
@@ -546,7 +550,7 @@ function advanceShield(decision) {
   if (state.phase === "shieldUpper1") {
     state.shield.upper1Winners = state.series.winners;
     state.shield.upper1Losers = state.series.losers;
-    setSeries("shieldLower1", state.shield.upper1Losers, "败者区生死战");
+    setSeries("shieldLower1", state.shield.upper1Losers, "败者区淘汰赛");
   } else if (state.phase === "shieldLower1") {
     state.shield.lowerSurvivors = state.series.winners;
     setSeries("shieldUpper2", state.shield.upper1Winners, "32强胜者区");
@@ -587,15 +591,14 @@ function advancePage(decision) {
 
 function stageMeta() {
   const contest = currentContest();
-  if (state.phase === "version") return { kicker: "VERSION TRIAL", title: contest.label, rule: "\u540c\u540d\u6b4c\u66f2\u7684\u6240\u6709\u6709\u6548\u7248\u672c\u5148\u53ea\u7559\u4e00\u9996\uff1b\u5f55\u97f3\u5ba4\u3001\u73b0\u573a\u53ca\u4e0d\u540c\u6536\u5f55\u90fd\u5728\u8fd9\u91cc\u51b3\u51fa\u552f\u4e00\u4ee3\u8868\u3002", index: state.versionIndex, total: state.versionPlans.length };
-  if (state.phase === "version") return { kicker: "VERSION TRIAL", title: contest.label, rule: "同一语言、同一首歌，先选出你真正想保留的版本。", index: state.versionIndex, total: state.versionPlans.length };
-  if (state.phase === "preliminary") return { kicker: "SELECT ONE OF THREE", title: contest.label, rule: `${contest.songIds.length} 首只能保留 1 首；其余版本立即离开本届比赛。`, index: state.preliminaryIndex, total: state.preliminaryGroups.length };
-  if (state.phase === "bilingual") return { kicker: "LANGUAGE JUDGEMENT", title: contest.label, rule: "两个语种已经分别选出最强版本，现在只能留下一个。", index: state.bilingualIndex, total: state.bilingualGroups.length };
+  if (state.phase === "version") return { kicker: "VERSION TRIAL", title: contest.label, rule: "同一首歌有多个版本时，先选出你最喜欢的一个。", index: state.versionIndex, total: state.versionPlans.length };
+  if (state.phase === "preliminary") return { kicker: "SELECT ONE OF THREE", title: contest.label, rule: `${contest.songIds.length} 首里选 1 首晋级，其他歌曲在这一轮出局。`, index: state.preliminaryIndex, total: state.preliminaryGroups.length };
+  if (state.phase === "bilingual") return { kicker: "MANDARIN VS CANTONESE", title: contest.label, rule: "国粤版本已经各自选出代表，现在从中留下一首。", index: state.bilingualIndex, total: state.bilingualGroups.length };
   if (state.phase === "gsl") return { kicker: "GSL GROUP", title: contest.label, rule: "两胜晋级、两负出局；小组第一直通，第二进入最后机会赛。", index: state.gsl.groupIndex * 5 + state.gsl.step, total: 200 };
   if (state.phase === "lcq") return { kicker: "LAST CHANCE", title: contest.label, rule: "Page生存组：此前表现决定顺位，本场决定最后的64强席位。", index: state.lcq.groupIndex * 3 + state.lcq.step, total: 24 };
-  if (state.phase.startsWith("shield")) return { kicker: "LIMITED DOUBLE ELIMINATION", title: contest.label, rule: state.phase.includes("Lower") || state.phase === "shieldCross" ? "已经没有退路，败者永久淘汰。" : "胜者留在上区，败者仍有一次生存机会。", index: state.series.index, total: state.series.matches.length };
-  if (state.phase === "knockout") return { kicker: "SINGLE ELIMINATION", title: contest.label, rule: "从现在开始没有败者区，也没有第二次机会。", index: state.knockout.index, total: state.knockout.matches.length };
-  return { kicker: "PAGE FINAL FOUR", title: contest.label, rule: "最终四强按Page路径争夺冠军，最后一票不可撤回。", index: state.page.step, total: 4 };
+  if (state.phase.startsWith("shield")) return { kicker: "LIMITED DOUBLE ELIMINATION", title: contest.label, rule: state.phase.includes("Lower") || state.phase === "shieldCross" ? "这一场输掉就出局。" : "胜者留在上区，败者还有一次机会。", index: state.series.index, total: state.series.matches.length };
+  if (state.phase === "knockout") return { kicker: "SINGLE ELIMINATION", title: contest.label, rule: "单场定胜负，输掉就出局。", index: state.knockout.index, total: state.knockout.matches.length };
+  return { kicker: "PAGE FINAL FOUR", title: contest.label, rule: "最后四强按 Page 赛制决出冠军，最后一票不可撤回。", index: state.page.step, total: 4 };
 }
 
 function renderStage() {
@@ -613,7 +616,7 @@ function renderStage() {
   $("#groupGrid").className = `group-grid size-${contest.songIds.length}`;
   $("#groupGrid").innerHTML = contest.songIds.map(id => songCard(songById.get(id))).join("");
   $("#stageSubmit").disabled = true;
-  $("#stageSubmit").textContent = "选出唯一留下的歌";
+  $("#stageSubmit").textContent = "选一首留下";
   $("#undoButton").disabled = !state.history.length || state.phase === "page" && state.page.step === 3;
   $$(".group-card").forEach(card => card.addEventListener("click", event => {
     if (event.target.closest(".preview-button, .store-link")) return;
@@ -994,12 +997,111 @@ function renderPostGameStory() {
   $("#storyFinals").innerHTML = story.finalists.map((song, index) => `<article class="story-finalist"><img src="${escapeHtml(song.cover)}" alt=""><div><span>${["亚军之争", "最终四强", "最终四强"][index] || "最终四强"}</span><strong>${escapeHtml(song.title)}</strong></div></article>`).join("");
 }
 
+function songProfile(song) {
+  const parsedYear = Number.parseInt(song?.year, 10);
+  return {
+    title: song?.title || "",
+    album: song?.sourceAlbum || song?.album || "",
+    edition: song?.edition || "other",
+    year: Number.isInteger(parsedYear) && parsedYear >= 1970 && parsedYear <= 2100 ? parsedYear : null
+  };
+}
+
+function buildChoiceProfile() {
+  const winnerCounts = new Map();
+  const decadeCounts = new Map();
+  state.decisions.forEach(decision => {
+    const song = songById.get(decision.winnerId);
+    if (!song) return;
+    winnerCounts.set(song.id, (winnerCounts.get(song.id) || 0) + 1);
+    const year = Number.parseInt(song.year, 10);
+    if (Number.isInteger(year) && year >= 1970 && year <= 2100) {
+      const decade = `${Math.floor(year / 10) * 10}s`;
+      decadeCounts.set(decade, (decadeCounts.get(decade) || 0) + 1);
+    }
+  });
+
+  const versionPreference = { live: 0, studio: 0, other: 0 };
+  state.decisions.filter(decision => decision.phase === "version").forEach(decision => {
+    const edition = songById.get(decision.winnerId)?.edition;
+    versionPreference[edition === "live" || edition === "studio" ? edition : "other"] += 1;
+  });
+
+  return {
+    champion: songProfile(songById.get(state.championId)),
+    finalFour: state.finalFourIds.map(id => songProfile(songById.get(id))),
+    mode: state.mode === "random" ? "完全随机" : "版本相邻",
+    totalDecisions: state.decisions.length,
+    durationSeconds: Math.round(state.decisions.reduce((sum, decision) => sum + decision.durationMs, 0) / 1000),
+    versionPreference,
+    bilingualOutcomes: state.decisions.filter(decision => decision.phase === "bilingual").slice(0, 8).map(decision => ({
+      matchup: decision.label,
+      winner: songById.get(decision.winnerId)?.title || "",
+      eliminated: songById.get(decision.loserIds[0])?.title || ""
+    })),
+    frequentWinners: [...winnerCounts.entries()]
+      .map(([id, wins]) => ({ title: songById.get(id)?.title || "", wins }))
+      .sort((left, right) => right.wins - left.wins)
+      .slice(0, 8),
+    decadeDistribution: [...decadeCounts.entries()]
+      .map(([decade, wins]) => ({ decade, wins }))
+      .sort((left, right) => left.decade.localeCompare(right.decade)),
+    hardestChoices: [...state.decisions]
+      .filter(decision => decision.loserIds.length)
+      .sort((left, right) => right.durationMs - left.durationMs)
+      .slice(0, 5)
+      .map(decision => ({
+        phase: PHASE_LABELS[decision.phase] || decision.phase,
+        chosen: songById.get(decision.winnerId)?.title || "",
+        eliminated: decision.loserIds.map(id => songById.get(id)?.title).filter(Boolean).slice(0, 3),
+        durationSeconds: Math.round(decision.durationMs / 1000)
+      }))
+  };
+}
+
+function renderChoiceAnalysis(analysis) {
+  choiceAnalysis = analysis;
+  $("#aiAnalysisHeadline").textContent = analysis.headline;
+  $("#aiAnalysisSummary").textContent = analysis.summary;
+  $("#aiAnalysisObservations").innerHTML = analysis.observations.map(item => `<li>${escapeHtml(item)}</li>`).join("");
+  $("#aiAnalysisClosing").textContent = analysis.closing;
+  $("#aiAnalysisResult").classList.remove("hidden");
+  $("#aiAnalysisStatus").textContent = "解析已生成，并会加入下一张结果图。";
+  window.setResultAnalysis?.(analysis);
+}
+
+async function analyzeChoices() {
+  if (!state?.championId || analysisRequestPending) return;
+  const button = $("#analyzeChoicesButton");
+  analysisRequestPending = true;
+  button.disabled = true;
+  button.textContent = "DeepSeek 正在解析";
+  $("#aiAnalysisStatus").textContent = "正在整理匿名选择摘要，通常需要几秒。";
+  try {
+    const response = await fetch(DEEPSEEK_API_ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ profile: buildChoiceProfile() })
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok || !payload.analysis) throw new Error(payload.error || "暂时没有拿到解析结果");
+    renderChoiceAnalysis(payload.analysis);
+    button.textContent = "重新生成解析";
+  } catch (error) {
+    $("#aiAnalysisStatus").textContent = `${error.message}。请稍后再试。`;
+    button.textContent = choiceAnalysis ? "重新生成解析" : "生成 DeepSeek 解析";
+  } finally {
+    analysisRequestPending = false;
+    button.disabled = false;
+  }
+}
+
 function renderChampion() {
   const champion = songById.get(state.championId);
   $("#championTitle").textContent = champion.title;
   $("#championCover").src = champion.cover;
   const wins = state.decisions.filter(decision => decision.winnerId === champion.id).length;
-  $("#championPath").textContent = `从${CATALOG_SIZE}个版本中经历 ${wins} 场胜利，成为你的唯一陈奕迅冠军。`;
+  $("#championPath").textContent = `从 ${CATALOG_SIZE} 个版本中一路赢下 ${wins} 场，这就是你选出的陈奕迅冠军。`;
   $("#finalists").innerHTML = state.finalFourIds.filter(id => id !== champion.id).map(id => `<div class="finalist"><span>最终四强</span><strong>${escapeHtml(songById.get(id).title)}</strong></div>`).join("");
   renderPostGameStory();
   renderSummary();
@@ -1143,7 +1245,7 @@ async function downloadSummaryImage() {
     context.fillStyle = "#a1a1a6"; context.font = "16px sans-serif"; context.fillText(index === 0 ? "亚军之争" : "最终四强", x + 124, 1958);
     drawLabel(song.title, x + 124, 2007, 280, 28);
   });
-  context.fillStyle = "#a1a1a6"; context.font = "20px sans-serif"; context.fillText("你的选择，全部有迹可循。", 80, 2150);
+  context.fillStyle = "#a1a1a6"; context.font = "20px sans-serif"; context.fillText("回头看看你都淘汰了谁", 80, 2150);
   canvas.toBlob(blob => blob && downloadBlob(blob, `eason-${CATALOG_SIZE}-champion-map.png`), "image/png");
 }
 
@@ -1182,9 +1284,13 @@ function switchView(view) {
 }
 
 function resetTournament() {
-  if (state?.decisions?.length && !window.confirm("保留的赛后档案不会被上传。确定清除当前赛程并重新开始？")) return;
+  if (state?.decisions?.length && !window.confirm("当前进度只保存在这台设备上。确定清空并重新开始吗？")) return;
   stopPreview();
   window.resetResultPoster?.();
+  choiceAnalysis = null;
+  $("#aiAnalysisResult").classList.add("hidden");
+  $("#aiAnalysisStatus").textContent = "";
+  $("#analyzeChoicesButton").textContent = "生成 DeepSeek 解析";
   localStorage.removeItem(STORAGE_KEY);
   state = null;
   selectedSongId = null;
@@ -1231,6 +1337,7 @@ function bindEvents() {
   $("#playAgainButton").addEventListener("click", resetTournament);
   $("#copyButton").addEventListener("click", copyResult);
   $("#downloadSummaryButton").addEventListener("click", () => window.openResultPoster?.());
+  $("#analyzeChoicesButton").addEventListener("click", analyzeChoices);
   $("#exportVotesButton").addEventListener("click", exportVotes);
   $(".brand").addEventListener("click", event => { event.preventDefault(); switchView("game"); });
   $("#librarySearch").addEventListener("input", renderLibrary);
@@ -1268,5 +1375,17 @@ if (isLocalPosterTest || isInternalPosterTest) {
   }
   showScreen("champion");
   renderChampion();
+  if (isInternalPosterTest) {
+    renderChoiceAnalysis({
+      headline: "偏爱经得住反复比较的歌",
+      summary: "你的冠军不是靠一轮爆发留下来的。它从同名版本、淘汰赛到四强都持续胜出，最后的答案更像一次次比较后的确认。",
+      observations: [
+        "录音室版本在版本预选里更常胜出，你更看重熟悉录音本身，而不是现场气氛带来的加成。",
+        "最久的几次停顿集中在后程淘汰赛，真正难选的时候，是已经很喜欢的歌正面相遇。",
+        "冠军在四强阶段仍连续胜出，说明早期的好感没有被后面的强对手冲淡。"
+      ],
+      closing: "这次冠军，是一路比较后留下的答案。"
+    });
+  }
   window.openResultPoster?.();
 }

@@ -1,4 +1,4 @@
-const CACHE_NAME = "eason-cup-shell-v6";
+const CACHE_NAME = "eason-cup-shell-v15";
 const APP_SHELL = [
   "./",
   "./index.html",

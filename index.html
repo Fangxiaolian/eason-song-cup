@@ -33,14 +33,14 @@
         <div class="cover-stage" aria-hidden="true">
           <img src="assets/covers/1831490372.jpg" alt="">
           <div class="record"><span></span></div>
-          <div class="cover-caption"><span data-catalog-size>392</span> VERSIONS · ONE CHAMPION</div>
+          <div class="cover-caption"><span data-catalog-size>387</span> VERSIONS · ONE CHAMPION</div>
         </div>
         <div class="setup-copy">
           <p class="eyebrow">EASON CHAN · 1996—2026</p>
-          <h1>陈奕迅 <span data-catalog-size>392</span></h1>
-          <p class="hero-subtitle">经过筛选的所有独立版本，只准留下一首。</p>
+          <h1>陈奕迅 <span data-catalog-size>387</span></h1>
+          <p class="hero-subtitle">从 <span data-catalog-size>387</span> 个版本里，一轮轮选出你最舍不得淘汰的那一首。</p>
           <div class="format-strip" aria-label="比赛阶段">
-            <span>版本预选</span><i></i><span>三选一</span><i></i><span>国粤审判</span><i></i><span>死亡小组</span><i></i><span>64 强</span>
+            <span>版本预选</span><i></i><span>三选一</span><i></i><span>国粤对决</span><i></i><span>GSL 小组</span><i></i><span>64 强</span>
           </div>
           <div class="mode-control" role="group" aria-label="编组方式">
             <button class="mode-button active" data-mode="balanced">年代均衡</button>
@@ -49,7 +49,7 @@
           <button class="primary-button" id="startButton">开始冠军杯<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></button>
           <button class="resume-button hidden" id="resumeButton">继续上次赛程</button>
           <dl class="game-facts">
-            <div><dt data-catalog-size>392</dt><dd>个独立版本</dd></div>
+            <div><dt data-catalog-size>387</dt><dd>个独立版本</dd></div>
             <div><dt>160</dt><dd>首晋级正赛</dd></div>
             <div><dt>64</dt><dd>强淘汰赛</dd></div>
           </dl>
@@ -77,7 +77,7 @@
           </div>
         </div>
         <section class="champion-story" aria-labelledby="storyTitle">
-          <div class="story-heading"><div><p class="eyebrow">YOUR CHAMPION MAP</p><h3 id="storyTitle">这首歌，是怎么走到最后的</h3></div><p>冠军的每一步、最舍不得的一票，以及最后留在终局的歌，都在这里。</p></div>
+          <div class="story-heading"><div><p class="eyebrow">YOUR CHAMPION MAP</p><h3 id="storyTitle">这首歌怎么走到了最后</h3></div><p>它一路赢过谁、哪一票让你想得最久，以及最后四强都在这里。</p></div>
           <div class="story-stage">
             <div class="story-lane story-lane-left"><p class="story-lane-title">冠军之路</p><div id="championRoad"></div></div>
             <article class="story-champion" id="storyChampion"></article>
@@ -85,8 +85,25 @@
           </div>
           <div class="story-finals" id="storyFinals"></div>
         </section>
+        <section class="ai-analysis" aria-labelledby="aiAnalysisTitle">
+          <div class="ai-analysis-heading">
+            <div><p class="eyebrow">DEEPSEEK 赛后解析</p><h3 id="aiAnalysisTitle">从你的选择里再看一遍</h3></div>
+            <div class="ai-analysis-action">
+              <button class="primary-button" id="analyzeChoicesButton" type="button">生成 DeepSeek 解析</button>
+              <p>只发送冠军、四强和选择偏好的匿名汇总，不发送完整投票记录。</p>
+            </div>
+          </div>
+          <div class="ai-analysis-status" id="aiAnalysisStatus" role="status" aria-live="polite"></div>
+          <article class="ai-analysis-result hidden" id="aiAnalysisResult">
+            <p class="ai-analysis-kicker">你的选择侧写</p>
+            <h4 id="aiAnalysisHeadline"></h4>
+            <p class="ai-analysis-summary" id="aiAnalysisSummary"></p>
+            <ol class="ai-analysis-observations" id="aiAnalysisObservations"></ol>
+            <p class="ai-analysis-closing" id="aiAnalysisClosing"></p>
+          </article>
+        </section>
         <section class="season-summary" aria-labelledby="summaryTitle">
-          <div class="summary-heading"><div><p class="eyebrow">YOUR VOTING STORY</p><h3 id="summaryTitle">你的选择，全部有迹可循。</h3></div><p>从版本预选到最后一票，按阶段回看你保留和淘汰的每一首歌。</p></div>
+          <div class="summary-heading"><div><p class="eyebrow">YOUR VOTING STORY</p><h3 id="summaryTitle">回头看看你都淘汰了谁</h3></div><p>每一轮的选择都记在这里，可以按阶段慢慢回看。</p></div>
           <div class="summary-stats" id="summaryStats"></div>
           <div class="summary-highlight" id="summaryHighlight"></div>
           <div class="summary-toolbar"><div class="filter-pills" id="summaryFilters"></div><button class="secondary-button hidden" id="exportVotesButton">导出完整记录</button></div>
@@ -96,21 +113,21 @@
     </section>
 
     <section class="view library-view" id="libraryView">
-      <div class="section-heading"><div><p class="eyebrow">THE <span data-catalog-size>392</span></p><h2>完整版本曲库</h2></div><p>同名歌曲按Spotify Track ID独立参赛。录音室、现场和特别版本均保留自己的专辑身份，重制版本和你审查排除的重复版本不参赛。</p></div>
+      <div class="section-heading"><div><p class="eyebrow">THE <span data-catalog-size>387</span></p><h2>完整版本曲库</h2></div><p>同名歌曲按不同 Spotify Track ID 分开参赛。录音室、现场和特别版本都会保留；重制版和已经确认的重复版本不参赛。</p></div>
       <div class="library-toolbar"><input id="librarySearch" type="search" placeholder="搜索歌曲、版本或专辑" aria-label="搜索歌曲、版本或专辑"><div class="filter-pills" id="libraryFilters"><button class="active" data-filter="all">全部</button><button data-filter="studio">录音室</button><button data-filter="live">现场</button><button data-filter="fear">F&amp;D</button></div></div>
       <div class="library-grid" id="libraryGrid"></div>
     </section>
 
     <section class="view method-view" id="methodView">
-      <div class="section-heading"><div><p class="eyebrow">FORMAT &amp; SOURCES</p><h2>更残酷，也更讲道理。</h2></div><p>版本偏好、语言偏好与最终冠军分开审判；每一个复活资格都由此前表现决定。</p></div>
+      <div class="section-heading"><div><p class="eyebrow">FORMAT &amp; SOURCES</p><h2>怎么从曲库走到冠军</h2></div><p>先处理同名版本和国粤版本，再进入小组赛和淘汰赛。复活机会只出现在前半程。</p></div>
       <div class="method-grid format-method">
-        <article><span>01</span><h3>版本预选</h3><p>国粤对应曲先在各自语种内选择录音室或现场版本。《六月飞霜》单独决出版本冠军。</p></article>
-        <article><span>02</span><h3>三选一海选</h3><p>其余版本以三选一为主，产生151个普通席位；国粤候选暂时进入候场区。</p></article>
-        <article><span>03</span><h3>国粤审判</h3><p>七组对应曲在海选末尾正面对决，与《六月飞霜》共同补齐160强。</p></article>
-        <article><span>04</span><h3>死亡小组</h3><p>40个GSL小组采用两胜晋级、两负出局；小组第二还要参加Page最后机会赛。</p></article>
-        <article><span>05</span><h3>有限双败</h3><p>64强前两轮保留一次失败机会，16强起恢复单败，四强以Page赛制决出冠军。</p></article>
+        <article><span>01</span><h3>版本预选</h3><p>同一首歌有多个录音室或现场版本时，先选出一个代表。《六月飞霜》也会单独选版本。</p></article>
+        <article><span>02</span><h3>三选一海选</h3><p>其余版本大多三选一，产生 151 个席位；国粤对应曲先留在候场区。</p></article>
+        <article><span>03</span><h3>国粤对决</h3><p>七组国粤对应曲各选一首，再和《六月飞霜》一起补齐 160 强。</p></article>
+        <article><span>04</span><h3>GSL 小组赛</h3><p>40 个小组采用两胜晋级、两负出局；小组第二还要参加最后机会赛。</p></article>
+        <article><span>05</span><h3>淘汰赛</h3><p>64 强前两轮允许输一次，16 强起单场定胜负，最后四强用 Page 赛制决出冠军。</p></article>
       </div>
-      <div class="source-band"><div><span class="source-stat" data-catalog-size>392</span><span>个参赛版本</span></div><div><span class="source-stat">104</span><span>张对应专辑封面</span></div><div><span class="source-stat">5+</span><span>个平台交叉核对</span></div></div>
+      <div class="source-band"><div><span class="source-stat" data-catalog-size>387</span><span>个参赛版本</span></div><div><span class="source-stat">104</span><span>张对应专辑封面</span></div><div><span class="source-stat">5+</span><span>个平台交叉核对</span></div></div>
       <div class="source-links">
         <a href="version-review.html">同名版本审查表 →</a>
         <a href="https://musiccup.app" target="_blank" rel="noreferrer">赛制参考：MusicCup ↗</a>
@@ -132,7 +149,7 @@
         <button class="poster-close-button" id="closePosterButton" type="button" aria-label="关闭结果图预览">×</button>
       </div>
       <div class="result-poster-stage" id="resultPosterStage" aria-live="polite">
-        <div class="poster-generating" id="posterGenerating"><span></span><strong>正在生成高清结果图</strong><p>封面、32强路径和固定网站二维码正在合成。</p></div>
+        <div class="poster-generating" id="posterGenerating"><span></span><strong>正在生成高清结果图</strong><p>正在加入封面、32 强晋级路线和网站二维码。</p></div>
         <img class="result-poster-preview hidden" id="resultPosterPreview" alt="个人冠军杯结果图">
       </div>
       <p class="poster-mobile-hint" id="posterMobileHint">手机可使用系统分享；在微信或QQ内无法下载时，可长按上方图片保存。</p>

@@ -1,10 +1,20 @@
-const RESULT_SITE_URL = "https://fangxiaolian.github.io/eason-song-cup/";
+const RESULT_SITE_URL = "https://eason-nb.apay.eu.cc/";
 const RESULT_POSTER_SIZE = { width: 1400, height: 2400 };
+const RESULT_HEADER_FONT = '"PingFangShaoHua"';
+const RESULT_DEFAULT_FONT = '"PingFang SC", "Microsoft YaHei", sans-serif';
+const RESULT_POSTER_FONT_SAMPLE = "陈奕迅冠军杯 EASON SONG CUP";
 let resultPosterBlob = null;
 let resultPosterUrl = null;
+let resultAnalysis = null;
 
-function posterFont(weight, size) {
-  return `${weight} ${size}px -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif`;
+function posterFont(weight, size, family = RESULT_DEFAULT_FONT) {
+  return `${weight} ${size}px ${family}`;
+}
+
+async function ensureResultPosterFont() {
+  if (!document.fonts?.load) return;
+  const loadedFaces = await document.fonts.load(`400 42px ${RESULT_HEADER_FONT}`, RESULT_POSTER_FONT_SAMPLE);
+  if (!loadedFaces.length) throw new Error("海报字体加载失败，请检查网络后重试");
 }
 
 function posterImage(source) {
@@ -32,6 +42,56 @@ function posterTruncate(context, text, maxWidth) {
   let output = value;
   while (output.length > 1 && context.measureText(`${output}…`).width > maxWidth) output = output.slice(0, -1);
   return `${output}…`;
+}
+
+function posterWrapText(context, text, maxWidth) {
+  const characters = Array.from(String(text || ""));
+  const lines = [];
+  let line = "";
+  characters.forEach(character => {
+    const candidate = `${line}${character}`;
+    if (!line || context.measureText(candidate).width <= maxWidth) {
+      line = candidate;
+      return;
+    }
+    const lastSpace = line.lastIndexOf(" ");
+    if (lastSpace > 0 && /[A-Za-z0-9]/.test(character) && /[A-Za-z0-9]/.test(line.at(-1))) {
+      lines.push(line.slice(0, lastSpace).trimEnd());
+      line = `${line.slice(lastSpace + 1)}${character}`;
+    } else {
+      lines.push(line.trimEnd());
+      line = character.trimStart();
+    }
+  });
+  if (line) lines.push(line);
+  return lines.length ? lines : [""];
+}
+
+function posterTextLayout(context, text, options) {
+  const { maxWidth, maxLines = 2, fontSize = 18, minFontSize = 11, weight = 600, fontFamily = RESULT_DEFAULT_FONT } = options;
+  for (let size = fontSize; size >= minFontSize; size -= 1) {
+    context.font = posterFont(weight, size, fontFamily);
+    const lines = posterWrapText(context, text, maxWidth);
+    if (lines.length <= maxLines) return { lines, size };
+  }
+  context.font = posterFont(weight, minFontSize, fontFamily);
+  const wrapped = posterWrapText(context, text, maxWidth);
+  const lines = wrapped.slice(0, maxLines);
+  if (wrapped.length > maxLines) {
+    lines[maxLines - 1] = posterTruncate(context, wrapped.slice(maxLines - 1).join(""), maxWidth);
+  }
+  return { lines, size: minFontSize };
+}
+
+function posterDrawFittedText(context, text, x, centerY, options) {
+  const layout = posterTextLayout(context, text, options);
+  const lineHeight = layout.size * 1.16;
+  const startY = centerY - ((layout.lines.length - 1) * lineHeight) / 2;
+  context.font = posterFont(options.weight || 600, layout.size, options.fontFamily);
+  context.textAlign = options.align || "left";
+  context.textBaseline = "middle";
+  layout.lines.forEach((line, index) => context.fillText(line, x, startY + index * lineHeight));
+  return layout;
 }
 
 function posterRoundedRect(context, x, y, width, height, radius, fill, stroke = null, lineWidth = 1) {
@@ -64,30 +124,43 @@ function posterSongRow(context, images, song, winnerId, x, y, width, options = {
   posterRoundedRect(context, x, y, width, rowHeight, 7, winner ? "#1e1d25" : "#16161b", active, winner ? 1.8 : 1);
   posterCover(context, images, song, x + 7, y + (rowHeight - coverSize) / 2, coverSize, 4);
   context.fillStyle = winner ? "#f7f5ff" : "#9a98a3";
-  context.font = posterFont(winner ? 700 : 500, options.fontSize || 18);
-  context.textBaseline = "middle";
-  context.fillText(posterTruncate(context, song?.title || "未知歌曲", width - coverSize - 28), x + coverSize + 16, y + rowHeight / 2);
+  posterDrawFittedText(context, song?.title || "未知歌曲", x + coverSize + 16, y + rowHeight / 2, {
+    maxWidth: width - coverSize - 26,
+    maxLines: 2,
+    fontSize: options.fontSize || 17,
+    minFontSize: options.minFontSize || 11,
+    weight: winner ? 700 : 500,
+    fontFamily: RESULT_DEFAULT_FONT
+  });
   context.globalAlpha = 1;
 }
 
 function posterMatch(context, images, decision, x, y, width, accent) {
   if (!decision) return;
   const candidates = decision.candidateIds.map(id => songById.get(id)).filter(Boolean);
-  const gap = 7;
-  posterSongRow(context, images, candidates[0], decision.winnerId, x, y, width, { accent });
-  posterSongRow(context, images, candidates[1], decision.winnerId, x, y + 61 + gap, width, { accent });
+  const rowHeight = 46;
+  const gap = 6;
+  posterSongRow(context, images, candidates[0], decision.winnerId, x, y, width, { accent, rowHeight, coverSize: 34, fontSize: 16 });
+  posterSongRow(context, images, candidates[1], decision.winnerId, x, y + rowHeight + gap, width, { accent, rowHeight, coverSize: 34, fontSize: 16 });
 }
 
-function posterWinnerCard(context, images, decision, x, y, width, accent) {
+function posterWinnerCard(context, images, decision, x, y, width, accent, options = {}) {
   if (!decision) return;
   const song = songById.get(decision.winnerId);
   const isChampion = decision.winnerId === state.championId;
-  posterRoundedRect(context, x, y, width, 66, 7, "#19191f", isChampion ? accent : "#3a3942", isChampion ? 2 : 1);
-  posterCover(context, images, song, x + 8, y + 8, 50, 5);
+  const height = options.height || 68;
+  const coverSize = options.coverSize || 48;
+  posterRoundedRect(context, x, y, width, height, 7, "#19191f", isChampion ? accent : "#3a3942", isChampion ? 2 : 1);
+  posterCover(context, images, song, x + 8, y + (height - coverSize) / 2, coverSize, 5);
   context.fillStyle = isChampion ? "#f9f6ff" : "#d4d1db";
-  context.font = posterFont(isChampion ? 750 : 600, 19);
-  context.textBaseline = "middle";
-  context.fillText(posterTruncate(context, song?.title || "未知歌曲", width - 78), x + 68, y + 33);
+  posterDrawFittedText(context, song?.title || "未知歌曲", x + coverSize + 16, y + height / 2, {
+    maxWidth: width - coverSize - 24,
+    maxLines: 2,
+    fontSize: options.fontSize || 17,
+    minFontSize: options.minFontSize || 11,
+    weight: isChampion ? 750 : 600,
+    fontFamily: RESULT_DEFAULT_FONT
+  });
 }
 
 function posterConnector(context, fromX, fromY, toX, toY, highlighted = false) {
@@ -120,35 +193,36 @@ function drawPosterBackground(context, image, width, height) {
 }
 
 function drawPosterHeader(context) {
+  const catalogSize = window.EASON_CATALOG_SIZE || 387;
   context.textAlign = "center";
   context.fillStyle = "#a65cff";
-  context.font = posterFont(850, 42);
+  context.font = posterFont(850, 42, RESULT_HEADER_FONT);
   context.fillText("EASON SONG CUP", 700, 82);
   context.fillStyle = "#f7f5fa";
-  context.font = posterFont(800, 58);
+  context.font = posterFont(800, 58, RESULT_HEADER_FONT);
   context.fillText("陈奕迅 · 私人歌曲冠军杯", 700, 158);
   context.fillStyle = "#8d8996";
-  context.font = posterFont(500, 20);
-  context.fillText("从 387 个有效版本中，一次次留下自己的答案", 700, 204);
+  context.font = posterFont(500, 20, RESULT_HEADER_FONT);
+  context.fillText(`从 ${catalogSize} 个版本里，选出你最舍不得淘汰的那一首`, 700, 204);
   context.textAlign = "left";
 }
 
 function drawPosterBracket(context, images, rounds) {
   const accent = "#d95cff";
-  const r32Width = 260;
-  const r16Width = 220;
-  const r8Width = 210;
-  const leftX = 28;
-  const rightX = 1112;
-  const leftR16X = 322;
-  const rightR16X = 858;
-  const leftR8X = 485;
+  const r32Width = 245;
+  const r16Width = 215;
+  const r8Width = 165;
+  const leftX = 30;
+  const rightX = 1125;
+  const leftR16X = 300;
+  const rightR16X = 885;
+  const leftR8X = 530;
   const rightR8X = 705;
-  const baseY = 285;
-  const r32Gap = 190;
-  const r32Y = Array.from({ length: 8 }, (_, index) => baseY + index * r32Gap);
-  const r16Y = Array.from({ length: 4 }, (_, index) => baseY + 95 + index * r32Gap * 2);
-  const r8Y = [575, 1515];
+  const baseY = 300;
+  const matchStep = 142;
+  const r32Y = Array.from({ length: 8 }, (_, index) => baseY + index * matchStep);
+  const r16Y = [386, 670, 954, 1238];
+  const r8Y = [528, 1096];
   const left32 = rounds.round32.slice(0, 8);
   const right32 = rounds.round32.slice(8, 16);
   const left16 = rounds.round16.slice(0, 4);
@@ -156,60 +230,75 @@ function drawPosterBracket(context, images, rounds) {
   const left8 = rounds.quarterfinals.slice(0, 2);
   const right8 = rounds.quarterfinals.slice(2, 4);
 
-  left32.forEach((decision, index) => posterConnector(context, leftX + r32Width, r32Y[index] + 61, leftR16X, r16Y[Math.floor(index / 2)] + 33, decision.winnerId === state.championId));
-  right32.forEach((decision, index) => posterConnector(context, rightX, r32Y[index] + 61, rightR16X + r16Width, r16Y[Math.floor(index / 2)] + 33, decision.winnerId === state.championId));
-  left16.forEach((decision, index) => posterConnector(context, leftR16X + r16Width, r16Y[index] + 33, leftR8X, r8Y[Math.floor(index / 2)] + 33, decision.winnerId === state.championId));
-  right16.forEach((decision, index) => posterConnector(context, rightR16X, r16Y[index] + 33, rightR8X + r8Width, r8Y[Math.floor(index / 2)] + 33, decision.winnerId === state.championId));
+  const matchWinnerY = (decision, y) => {
+    const winnerIndex = Math.max(0, decision.candidateIds.indexOf(decision.winnerId));
+    return y + winnerIndex * 52 + 23;
+  };
+  left32.forEach((decision, index) => posterConnector(context, leftX + r32Width, matchWinnerY(decision, r32Y[index]), leftR16X, r16Y[Math.floor(index / 2)] + 34, decision.winnerId === state.championId));
+  right32.forEach((decision, index) => posterConnector(context, rightX, matchWinnerY(decision, r32Y[index]), rightR16X + r16Width, r16Y[Math.floor(index / 2)] + 34, decision.winnerId === state.championId));
+  left16.forEach((decision, index) => posterConnector(context, leftR16X + r16Width, r16Y[index] + 34, leftR8X, r8Y[Math.floor(index / 2)] + 34, decision.winnerId === state.championId));
+  right16.forEach((decision, index) => posterConnector(context, rightR16X, r16Y[index] + 34, rightR8X + r8Width, r8Y[Math.floor(index / 2)] + 34, decision.winnerId === state.championId));
 
   context.fillStyle = "#777380";
   context.font = posterFont(700, 16);
-  context.fillText("32 强", leftX, 260);
-  context.fillText("16 强", leftR16X, 260);
-  context.fillText("最终四强", leftR8X, 540);
+  context.fillText("32 强", leftX, 270);
+  context.fillText("16 强", leftR16X, 270);
+  context.fillText("四强席位", leftR8X, 500);
   context.textAlign = "right";
-  context.fillText("32 强", rightX + r32Width, 260);
-  context.fillText("16 强", rightR16X + r16Width, 260);
-  context.fillText("最终四强", rightR8X + r8Width, 540);
+  context.fillText("32 强", rightX + r32Width, 270);
+  context.fillText("16 强", rightR16X + r16Width, 270);
+  context.fillText("四强席位", rightR8X + r8Width, 500);
   context.textAlign = "left";
 
   left32.forEach((decision, index) => posterMatch(context, images, decision, leftX, r32Y[index], r32Width, accent));
   right32.forEach((decision, index) => posterMatch(context, images, decision, rightX, r32Y[index], r32Width, accent));
   left16.forEach((decision, index) => posterWinnerCard(context, images, decision, leftR16X, r16Y[index], r16Width, accent));
   right16.forEach((decision, index) => posterWinnerCard(context, images, decision, rightR16X, r16Y[index], r16Width, accent));
-  left8.forEach((decision, index) => posterWinnerCard(context, images, decision, leftR8X, r8Y[index], r8Width, accent));
-  right8.forEach((decision, index) => posterWinnerCard(context, images, decision, rightR8X, r8Y[index], r8Width, accent));
+  left8.forEach((decision, index) => posterWinnerCard(context, images, decision, leftR8X, r8Y[index], r8Width, accent, { coverSize: 38, fontSize: 15, minFontSize: 10 }));
+  right8.forEach((decision, index) => posterWinnerCard(context, images, decision, rightR8X, r8Y[index], r8Width, accent, { coverSize: 38, fontSize: 15, minFontSize: 10 }));
+}
+
+function drawPosterPage(context, images, decisions) {
+  const accent = "#d95cff";
+  const labels = ["头名资格赛", "四强淘汰赛", "决赛资格赛", "总决赛"];
+  const panelWidth = 300;
+  const panelY = 1452;
+  context.fillStyle = "#8f8b97";
+  context.font = posterFont(750, 17);
+  context.textAlign = "left";
+  context.fillText("PAGE 四强", 40, 1425);
+  decisions.forEach((decision, index) => {
+    const x = 40 + index * 330;
+    posterRoundedRect(context, x, panelY, panelWidth, 150, 9, "rgba(20, 20, 25, .9)", decision.winnerId === state.championId ? accent : "#34343d", decision.winnerId === state.championId ? 2 : 1);
+    context.fillStyle = decision.winnerId === state.championId ? "#d95cff" : "#8f8b97";
+    context.font = posterFont(700, 14);
+    context.fillText(`${String(index + 1).padStart(2, "0")} · ${labels[index]}`, x + 10, panelY + 24);
+    const candidates = decision.candidateIds.map(id => songById.get(id)).filter(Boolean);
+    posterSongRow(context, images, candidates[0], decision.winnerId, x + 10, panelY + 38, panelWidth - 20, { accent, rowHeight: 44, coverSize: 32, fontSize: 15, minFontSize: 10 });
+    posterSongRow(context, images, candidates[1], decision.winnerId, x + 10, panelY + 92, panelWidth - 20, { accent, rowHeight: 44, coverSize: 32, fontSize: 15, minFontSize: 10 });
+  });
 }
 
 function drawPosterChampion(context, images, story) {
-  const x = 500;
-  const y = 875;
-  const width = 400;
+  const x = 60;
+  const y = 1640;
+  const width = 1280;
+  const height = 250;
   const accent = "#d95cff";
   context.shadowColor = "rgba(175, 77, 255, .36)";
-  context.shadowBlur = 38;
-  posterRoundedRect(context, x, y, width, 500, 18, "#17171d", accent, 3);
+  context.shadowBlur = 28;
+  posterRoundedRect(context, x, y, width, height, 16, "#17171d", accent, 2.5);
   context.shadowBlur = 0;
-  posterCover(context, images, story.champion, x + 70, y + 52, 260, 16);
-  context.textAlign = "center";
-  context.fillStyle = "#f5c85a";
-  context.font = posterFont(900, 44);
-  context.fillText("♛", 700, y + 52);
-  posterRoundedRect(context, x + 65, y + 332, 270, 50, 25, accent);
-  context.fillStyle = "#ffffff";
-  context.font = posterFont(800, 21);
-  context.textBaseline = "middle";
-  context.fillText("冠军 · CHAMPION", 700, y + 357);
-  context.fillStyle = "#f8f6fb";
-  context.font = posterFont(850, 43);
-  context.fillText(posterTruncate(context, story.champion.title, 340), 700, y + 425);
-  context.fillStyle = "#8f8b97";
-  context.font = posterFont(500, 18);
-  context.fillText(posterTruncate(context, story.champion.album, 340), 700, y + 466);
+  posterCover(context, images, story.champion, x + 24, y + 24, 202, 12);
   context.textAlign = "left";
-  context.textBaseline = "alphabetic";
-}
+  context.fillStyle = "#f5c85a";
+  context.font = posterFont(900, 30);
+  context.fillText("♛  冠军 · CHAMPION", x + 260, y + 55);
+  context.fillStyle = "#f8f6fb";
+  posterDrawFittedText(context, story.champion.title, x + 260, y + 118, { maxWidth: 430, maxLines: 2, fontSize: 46, minFontSize: 28, weight: 850, fontFamily: RESULT_DEFAULT_FONT });
+  context.fillStyle = "#8f8b97";
+  posterDrawFittedText(context, story.champion.album, x + 260, y + 200, { maxWidth: 430, maxLines: 2, fontSize: 20, minFontSize: 14, weight: 500 });
 
-function drawPosterStats(context, story) {
   const totalMs = state.decisions.reduce((sum, decision) => sum + decision.durationMs, 0);
   const hardest = [...state.decisions].sort((left, right) => right.durationMs - left.durationMs)[0];
   const stats = [
@@ -218,53 +307,84 @@ function drawPosterStats(context, story) {
     [String(story.championWins), "冠军胜场"],
     [hardest ? formatDuration(hardest.durationMs) : "—", "最纠结一票"]
   ];
-  const startX = 290;
-  const y = 1855;
+  const startX = x + 760;
   stats.forEach(([value, label], index) => {
-    const x = startX + index * 235;
+    const statX = startX + (index % 2) * 245;
+    const statY = y + 78 + Math.floor(index / 2) * 98;
     context.fillStyle = "#f5f3f8";
-    context.font = posterFont(750, 28);
-    context.textAlign = "center";
-    context.fillText(value, x, y);
+    context.font = posterFont(750, 30);
+    context.textAlign = "left";
+    context.fillText(value, statX, statY);
     context.fillStyle = "#7f7b88";
     context.font = posterFont(500, 15);
-    context.fillText(label, x, y + 28);
+    context.fillText(label, statX, statY + 28);
   });
   context.textAlign = "left";
 }
 
-function drawPosterFooter(context, qrImage) {
+function drawPosterAnalysis(context, analysis) {
+  const x = 60;
+  const y = 1940;
+  const width = 1280;
+  const accent = "#a65cff";
+  context.fillStyle = accent;
+  context.font = posterFont(800, 17);
+  context.fillText("DEEPSEEK 赛后解析", x, y + 22);
+  context.fillStyle = "#f7f5fa";
+  posterDrawFittedText(context, analysis.headline, x, y + 76, { maxWidth: 560, maxLines: 1, fontSize: 34, minFontSize: 24, weight: 800 });
+  context.fillStyle = "#aaa6b1";
+  posterDrawFittedText(context, analysis.summary, x + 600, y + 73, { maxWidth: 680, maxLines: 3, fontSize: 18, minFontSize: 15, weight: 500 });
+
+  context.strokeStyle = "#36343d";
+  context.beginPath(); context.moveTo(x, y + 130); context.lineTo(x + width, y + 130); context.stroke();
+  const columnWidth = 400;
+  analysis.observations.slice(0, 3).forEach((observation, index) => {
+    const columnX = x + index * 440;
+    if (index) {
+      context.beginPath(); context.moveTo(columnX - 20, y + 154); context.lineTo(columnX - 20, y + 274); context.stroke();
+    }
+    context.fillStyle = accent;
+    context.font = posterFont(750, 14);
+    context.fillText(`0${index + 1}`, columnX, y + 170);
+    context.fillStyle = "#d8d5dc";
+    posterDrawFittedText(context, observation, columnX, y + 226, { maxWidth: columnWidth, maxLines: 4, fontSize: 16, minFontSize: 13, weight: 500 });
+  });
+}
+
+function drawPosterFooter(context, qrImage, offsetY = 0) {
   context.strokeStyle = "#292832";
   context.lineWidth = 1;
-  context.beginPath(); context.moveTo(60, 1970); context.lineTo(1340, 1970); context.stroke();
-  posterRoundedRect(context, 112, 2035, 270, 270, 18, "#ffffff");
-  if (qrImage) context.drawImage(qrImage, 127, 2050, 240, 240);
+  context.beginPath(); context.moveTo(60, 1970 + offsetY); context.lineTo(1340, 1970 + offsetY); context.stroke();
+  posterRoundedRect(context, 112, 2035 + offsetY, 270, 270, 18, "#ffffff");
+  if (qrImage) context.drawImage(qrImage, 127, 2050 + offsetY, 240, 240);
   context.fillStyle = "#a65cff";
   context.font = posterFont(850, 38);
-  context.fillText("EASON SONG CUP", 445, 2105);
+  context.fillText("EASON SONG CUP", 445, 2105 + offsetY);
   context.fillStyle = "#f5f3f8";
   context.font = posterFont(700, 25);
-  context.fillText("扫码开始你的陈奕迅歌曲冠军杯", 445, 2158);
+  context.fillText("扫码开始你的陈奕迅歌曲冠军杯", 445, 2158 + offsetY);
   context.fillStyle = "#88848f";
   context.font = posterFont(500, 18);
-  context.fillText("每个人的选择不同，二维码始终指向同一个入口", 445, 2205);
+  context.fillText("把二维码发给朋友，看看你们最后会不会选到同一首", 445, 2205 + offsetY);
   context.fillStyle = "#aaa6b1";
   context.font = posterFont(600, 17);
-  context.fillText(RESULT_SITE_URL, 445, 2255);
+  context.fillText(RESULT_SITE_URL, 445, 2255 + offsetY);
 }
 
 async function createResultPosterBlob() {
   const story = buildPostGameStory();
   const rounds = posterRoundData();
-  if (!story.champion || rounds.round32.length !== 16 || rounds.round16.length !== 8 || rounds.quarterfinals.length !== 4) {
-    throw new Error("结果数据不完整，暂时无法生成32强路线图");
+  if (!story.champion || rounds.round32.length !== 16 || rounds.round16.length !== 8 || rounds.quarterfinals.length !== 4 || rounds.page.length !== 4) {
+    throw new Error("结果数据不完整，暂时无法生成完整淘汰赛路线图");
   }
   if (document.fonts?.ready) await document.fonts.ready;
+  await ensureResultPosterFont();
   const songIds = new Set([
     story.champion.id,
     ...rounds.round32.flatMap(decision => decision.candidateIds),
     ...rounds.round16.flatMap(decision => decision.candidateIds),
-    ...rounds.quarterfinals.flatMap(decision => decision.candidateIds)
+    ...rounds.quarterfinals.flatMap(decision => decision.candidateIds),
+    ...rounds.page.flatMap(decision => decision.candidateIds)
   ]);
   const imageEntries = await Promise.all([...songIds].map(async id => {
     const song = songById.get(id);
@@ -275,14 +395,15 @@ async function createResultPosterBlob() {
   const backgroundImage = await posterImage("assets/branding/result-poster-background.jpg");
   const canvas = document.createElement("canvas");
   canvas.width = RESULT_POSTER_SIZE.width;
-  canvas.height = RESULT_POSTER_SIZE.height;
+  canvas.height = resultAnalysis ? 2720 : RESULT_POSTER_SIZE.height;
   const context = canvas.getContext("2d");
   drawPosterBackground(context, backgroundImage, canvas.width, canvas.height);
   drawPosterHeader(context);
   drawPosterBracket(context, images, rounds);
+  drawPosterPage(context, images, rounds.page);
   drawPosterChampion(context, images, story);
-  drawPosterStats(context, story);
-  drawPosterFooter(context, qrImage);
+  if (resultAnalysis) drawPosterAnalysis(context, resultAnalysis);
+  drawPosterFooter(context, qrImage, resultAnalysis ? 320 : 0);
   window.RESULT_POSTER_DIAGNOSTICS = {
     width: canvas.width,
     height: canvas.height,
@@ -309,7 +430,15 @@ function resetResultPoster() {
   if (resultPosterUrl) URL.revokeObjectURL(resultPosterUrl);
   resultPosterBlob = null;
   resultPosterUrl = null;
+  resultAnalysis = null;
   closeResultPoster();
+}
+
+function setResultAnalysis(analysis) {
+  if (resultPosterUrl) URL.revokeObjectURL(resultPosterUrl);
+  resultPosterBlob = null;
+  resultPosterUrl = null;
+  resultAnalysis = analysis;
 }
 
 function saveResultPoster() {
@@ -380,3 +509,4 @@ function bindResultPosterControls() {
 window.openResultPoster = openResultPoster;
 window.bindResultPosterControls = bindResultPosterControls;
 window.resetResultPoster = resetResultPoster;
+window.setResultAnalysis = setResultAnalysis;
