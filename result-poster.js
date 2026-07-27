@@ -176,19 +176,19 @@ function posterConnector(context, fromX, fromY, toX, toY, highlighted = false) {
 }
 
 function drawPosterBackground(context, image, width, height) {
-  context.fillStyle = "#080706";
+  context.fillStyle = "#08080a";
   context.fillRect(0, 0, width, height);
   if (image) {
     const scale = Math.max(width / image.naturalWidth, height / image.naturalHeight);
     const drawWidth = image.naturalWidth * scale;
     const drawHeight = image.naturalHeight * scale;
+    context.save();
+    context.globalAlpha = .12;
+    context.filter = "grayscale(100%)";
     context.drawImage(image, (width - drawWidth) / 2, (height - drawHeight) / 2, drawWidth, drawHeight);
+    context.restore();
   }
-  const shade = context.createLinearGradient(0, 0, 0, height);
-  shade.addColorStop(0, "rgba(4, 3, 2, .58)");
-  shade.addColorStop(.45, "rgba(5, 4, 3, .68)");
-  shade.addColorStop(1, "rgba(4, 3, 3, .82)");
-  context.fillStyle = shade;
+  context.fillStyle = "rgba(6, 6, 8, .38)";
   context.fillRect(0, 0, width, height);
 }
 
@@ -371,20 +371,217 @@ function drawPosterFooter(context, qrImage, offsetY = 0) {
   context.fillText(RESULT_SITE_URL, 445, 2255 + offsetY);
 }
 
+function drawEditorialPosterHeader(context) {
+  const catalogSize = window.EASON_CATALOG_SIZE || 387;
+  context.textAlign = "left";
+  context.fillStyle = "#ff5064";
+  context.font = posterFont(400, 38, RESULT_HEADER_FONT);
+  context.fillText("EASON SONG CUP", 72, 82);
+  context.fillStyle = "#f8f7f4";
+  context.font = posterFont(400, 60, RESULT_HEADER_FONT);
+  context.fillText("陈奕迅 · 私人歌曲冠军杯", 72, 154);
+  context.fillStyle = "#a7a3ab";
+  context.font = posterFont(400, 20, RESULT_HEADER_FONT);
+  context.fillText(`从 ${catalogSize} 个版本里，选出你最舍不得淘汰的那一首`, 72, 202);
+  context.strokeStyle = "rgba(255, 255, 255, .16)";
+  context.beginPath();
+  context.moveTo(72, 228);
+  context.lineTo(1328, 228);
+  context.stroke();
+}
+
+function drawEditorialPosterChampion(context, images, story) {
+  const x = 72;
+  const y = 270;
+  const coverSize = 420;
+  posterCover(context, images, story.champion, x, y, coverSize, 10);
+
+  context.fillStyle = "#ff5064";
+  context.font = posterFont(800, 20);
+  context.fillText("NO. 01  ·  YOUR EASON CHAMPION", 550, y + 30);
+  context.fillStyle = "#faf8f5";
+  posterDrawFittedText(context, story.champion.title, 550, y + 132, {
+    maxWidth: 760,
+    maxLines: 2,
+    fontSize: 78,
+    minFontSize: 44,
+    weight: 850
+  });
+  context.fillStyle = "#aaa6ae";
+  posterDrawFittedText(context, story.champion.album, 550, y + 232, {
+    maxWidth: 730,
+    maxLines: 2,
+    fontSize: 24,
+    minFontSize: 17,
+    weight: 500
+  });
+
+  const totalMs = state.decisions.reduce((sum, decision) => sum + decision.durationMs, 0);
+  const hardest = [...state.decisions].sort((left, right) => right.durationMs - left.durationMs)[0];
+  const stats = [
+    [String(state.decisions.length), "次正式选择"],
+    [String(story.championWins), "冠军胜场"],
+    [formatDuration(totalMs), "累计思考"],
+    [hardest ? formatDuration(hardest.durationMs) : "—", "最纠结一票"]
+  ];
+  context.strokeStyle = "rgba(255, 255, 255, .14)";
+  context.beginPath();
+  context.moveTo(550, y + 302);
+  context.lineTo(1328, y + 302);
+  context.stroke();
+  stats.forEach(([value, label], index) => {
+    const statX = 550 + index * 194;
+    context.fillStyle = "#f6f3ef";
+    context.font = posterFont(750, 30);
+    context.fillText(value, statX, y + 360);
+    context.fillStyle = "#85818a";
+    context.font = posterFont(500, 15);
+    context.fillText(label, statX, y + 390);
+  });
+  context.fillStyle = "#d1cdd3";
+  context.font = posterFont(500, 18);
+  context.fillText("一轮轮比较之后，这就是你留下的答案。", 550, y + 444);
+}
+
+function drawEditorialPosterFinalFour(context, images, story) {
+  const y = 790;
+  const finalists = [story.champion, ...story.finalists].slice(0, 4);
+  const labels = ["冠军", "亚军", "最终四强", "最终四强"];
+  context.fillStyle = "#ff5064";
+  context.font = posterFont(800, 17);
+  context.fillText("FINAL FOUR  ·  最终四强", 72, y + 24);
+  finalists.forEach((song, index) => {
+    const x = 72 + index * 316;
+    const cardY = y + 56;
+    context.strokeStyle = index === 0 ? "#ff5064" : "rgba(255, 255, 255, .18)";
+    context.beginPath();
+    context.moveTo(x, cardY);
+    context.lineTo(x + 286, cardY);
+    context.stroke();
+    posterCover(context, images, song, x, cardY + 20, 82, 6);
+    context.fillStyle = index === 0 ? "#ff6879" : "#8e8992";
+    context.font = posterFont(700, 13);
+    context.fillText(labels[index], x + 102, cardY + 42);
+    context.fillStyle = "#f1eef3";
+    posterDrawFittedText(context, song?.title || "未知歌曲", x + 102, cardY + 78, {
+      maxWidth: 180,
+      maxLines: 2,
+      fontSize: 20,
+      minFontSize: 14,
+      weight: index === 0 ? 750 : 600
+    });
+  });
+}
+
+function drawEditorialPosterRoad(context, images, story) {
+  const top = 1060;
+  context.fillStyle = "#f7f4f0";
+  context.font = posterFont(800, 32);
+  context.fillText("这首歌怎么走到了最后", 72, top + 30);
+  context.fillStyle = "#8e8992";
+  context.font = posterFont(500, 17);
+  context.fillText("最后十场直接胜利，按赛程顺序回看", 72, top + 64);
+
+  story.road.slice(0, 10).forEach(({ songId, decision }, index) => {
+    const column = index % 2;
+    const row = Math.floor(index / 2);
+    const x = 72 + column * 640;
+    const y = top + 104 + row * 130;
+    const song = songById.get(songId);
+    posterRoundedRect(context, x, y, 600, 108, 7, "rgba(20, 20, 24, .82)", "#37353d", 1);
+    posterCover(context, images, song, x + 14, y + 14, 80, 5);
+    context.fillStyle = "#ff6073";
+    context.font = posterFont(750, 13);
+    const stage = PHASE_LABELS[decision.phase] || decision.label || "淘汰赛";
+    context.fillText(`${String(index + 1).padStart(2, "0")}  ·  ${stage}`, x + 112, y + 34);
+    context.fillStyle = "#f4f1f5";
+    posterDrawFittedText(context, song?.title || "未知歌曲", x + 112, y + 70, {
+      maxWidth: 466,
+      maxLines: 2,
+      fontSize: 22,
+      minFontSize: 15,
+      weight: 650
+    });
+  });
+}
+
+function drawEditorialPosterAnalysis(context, analysis) {
+  const x = 72;
+  const y = 1850;
+  context.strokeStyle = "rgba(255, 255, 255, .16)";
+  context.beginPath();
+  context.moveTo(x, y);
+  context.lineTo(1328, y);
+  context.stroke();
+  context.fillStyle = "#ff5064";
+  context.font = posterFont(800, 17);
+  context.fillText("DEEPSEEK 赛后解析", x, y + 45);
+  context.fillStyle = "#f7f4f0";
+  posterDrawFittedText(context, analysis.headline, x, y + 105, {
+    maxWidth: 560,
+    maxLines: 2,
+    fontSize: 38,
+    minFontSize: 26,
+    weight: 800
+  });
+  context.fillStyle = "#b9b5bd";
+  posterDrawFittedText(context, analysis.summary, x + 630, y + 108, {
+    maxWidth: 698,
+    maxLines: 4,
+    fontSize: 18,
+    minFontSize: 15,
+    weight: 500
+  });
+
+  const columnWidth = 390;
+  analysis.observations.slice(0, 3).forEach((observation, index) => {
+    const columnX = x + index * 432;
+    const itemY = y + 195;
+    context.fillStyle = "#ff6073";
+    context.font = posterFont(800, 14);
+    context.fillText(`0${index + 1}`, columnX, itemY);
+    context.fillStyle = "#ddd9df";
+    posterDrawFittedText(context, observation, columnX, itemY + 67, {
+      maxWidth: columnWidth,
+      maxLines: 5,
+      fontSize: 17,
+      minFontSize: 13,
+      weight: 500
+    });
+  });
+}
+
+function drawEditorialPosterFooter(context, qrImage, y) {
+  context.strokeStyle = "rgba(255, 255, 255, .16)";
+  context.beginPath();
+  context.moveTo(72, y);
+  context.lineTo(1328, y);
+  context.stroke();
+  posterRoundedRect(context, 72, y + 42, 214, 214, 12, "#ffffff");
+  if (qrImage) context.drawImage(qrImage, 84, y + 54, 190, 190);
+  context.fillStyle = "#ff5064";
+  context.font = posterFont(800, 30);
+  context.fillText("EASON SONG CUP", 330, y + 94);
+  context.fillStyle = "#f5f2f6";
+  context.font = posterFont(700, 24);
+  context.fillText("扫码开始你的陈奕迅歌曲冠军杯", 330, y + 140);
+  context.fillStyle = "#96919a";
+  context.font = posterFont(500, 17);
+  context.fillText("把结果发给朋友，看看你们最后会不会选到同一首", 330, y + 182);
+  context.fillStyle = "#c0bbc3";
+  context.font = posterFont(600, 16);
+  context.fillText(RESULT_SITE_URL, 330, y + 222);
+}
+
 async function createResultPosterBlob() {
   const story = buildPostGameStory();
-  const rounds = posterRoundData();
-  if (!story.champion || rounds.round32.length !== 16 || rounds.round16.length !== 8 || rounds.quarterfinals.length !== 4 || rounds.page.length !== 4) {
-    throw new Error("结果数据不完整，暂时无法生成完整淘汰赛路线图");
-  }
+  if (!story.champion) throw new Error("结果数据不完整，暂时无法生成冠军结果图");
   if (document.fonts?.ready) await document.fonts.ready;
   await ensureResultPosterFont();
   const songIds = new Set([
     story.champion.id,
-    ...rounds.round32.flatMap(decision => decision.candidateIds),
-    ...rounds.round16.flatMap(decision => decision.candidateIds),
-    ...rounds.quarterfinals.flatMap(decision => decision.candidateIds),
-    ...rounds.page.flatMap(decision => decision.candidateIds)
+    ...story.finalists.map(song => song.id),
+    ...story.road.map(item => item.songId)
   ]);
   const imageEntries = await Promise.all([...songIds].map(async id => {
     const song = songById.get(id);
@@ -398,12 +595,12 @@ async function createResultPosterBlob() {
   canvas.height = resultAnalysis ? 2720 : RESULT_POSTER_SIZE.height;
   const context = canvas.getContext("2d");
   drawPosterBackground(context, backgroundImage, canvas.width, canvas.height);
-  drawPosterHeader(context);
-  drawPosterBracket(context, images, rounds);
-  drawPosterPage(context, images, rounds.page);
-  drawPosterChampion(context, images, story);
-  if (resultAnalysis) drawPosterAnalysis(context, resultAnalysis);
-  drawPosterFooter(context, qrImage, resultAnalysis ? 320 : 0);
+  drawEditorialPosterHeader(context);
+  drawEditorialPosterChampion(context, images, story);
+  drawEditorialPosterFinalFour(context, images, story);
+  drawEditorialPosterRoad(context, images, story);
+  if (resultAnalysis) drawEditorialPosterAnalysis(context, resultAnalysis);
+  drawEditorialPosterFooter(context, qrImage, resultAnalysis ? 2380 : 1990);
   window.RESULT_POSTER_DIAGNOSTICS = {
     width: canvas.width,
     height: canvas.height,
