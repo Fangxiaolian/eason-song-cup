@@ -164,7 +164,7 @@ async function handleAnalyze(request, env, origin) {
         thinking: { type: "enabled" },
         reasoning_effort: "high",
         response_format: { type: "json_object" },
-        max_tokens: 1800,
+        max_tokens: 8000,
         stream: false
       })
     });
@@ -178,16 +178,38 @@ async function handleAnalyze(request, env, origin) {
     return jsonResponse({ error: message, code }, upstream.status === 429 ? 429 : 502, origin);
   }
 
+  let payload;
   try {
-    const payload = await upstream.json();
-    const content = payload?.choices?.[0]?.message?.content;
-    const parsed = JSON.parse(String(content || "").replace(/^```(?:json)?\s*|\s*```$/g, ""));
-    const analysis = normalizeAnalysis(parsed);
-    if (!analysis) throw new Error("invalid response");
-    return jsonResponse({ analysis, model: "deepseek-v4-pro" }, 200, origin);
+    payload = await upstream.json();
   } catch {
-    return jsonResponse({ error: "解析结果格式异常，请重试", code: "INVALID_UPSTREAM_RESPONSE" }, 502, origin);
+    return jsonResponse({ error: "DeepSeek 返回内容无法读取，请重试", code: "INVALID_UPSTREAM_JSON" }, 502, origin);
   }
+
+  const content = String(payload?.choices?.[0]?.message?.content || "").trim();
+  if (!content) {
+    return jsonResponse({ error: "DeepSeek 思考完成但没有生成正文，请重试", code: "EMPTY_UPSTREAM_CONTENT" }, 502, origin);
+  }
+
+  let parsed;
+  try {
+    const withoutFence = content.replace(/^```(?:json)?\s*|\s*```$/g, "").trim();
+    try {
+      parsed = JSON.parse(withoutFence);
+    } catch {
+      const start = withoutFence.indexOf("{");
+      const end = withoutFence.lastIndexOf("}");
+      if (start < 0 || end <= start) throw new Error("missing JSON object");
+      parsed = JSON.parse(withoutFence.slice(start, end + 1));
+    }
+  } catch {
+    return jsonResponse({ error: "DeepSeek 的解析正文没有完整生成，请重试", code: "INVALID_UPSTREAM_JSON" }, 502, origin);
+  }
+
+  const analysis = normalizeAnalysis(parsed);
+  if (!analysis) {
+    return jsonResponse({ error: "DeepSeek 返回的解析字段不完整，请重试", code: "INVALID_UPSTREAM_RESPONSE" }, 502, origin);
+  }
+  return jsonResponse({ analysis, model: "deepseek-v4-pro" }, 200, origin);
 }
 
 export default {
