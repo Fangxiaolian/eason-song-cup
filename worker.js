@@ -156,14 +156,13 @@ async function handleAnalyze(request, env, origin) {
               "重点分析用户在具体歌曲之间如何取舍：优先冠军之路、四强、后期淘汰赛、停留时间较长的选择，以及录音室/现场、年代和语言版本的重复倾向。",
               "每个comparisons条目必须明确写出被选择和被淘汰的真实歌名，并说明这场取舍对整体偏好意味着什么。证据不足时用“更像是”“可能”表达，不要把推测写成事实。",
               "避免逐项复述数据；要把多场选择串成可以互相印证或彼此矛盾的偏好线索。语气自然、具体、克制，不要空泛夸奖，不要AI腔。",
-              "必须输出JSON对象：headline为不超过18字的标题；summary为100到160字的总括；observations为恰好3条、每条45到80字的跨对局观察；comparisons为恰好6个对象，每个对象包含matchup和insight，matchup写“《选择曲》胜过《淘汰曲》”，insight为35到70字的具体比较；closing为不超过45字的收尾。"
+              "只输出一个JSON对象，不要 Markdown 代码围栏，不要在JSON前后添加解释：headline为不超过18字的标题；summary为100到160字的总括；observations为恰好3条、每条45到80字的跨对局观察；comparisons为恰好6个对象，每个对象包含matchup和insight，matchup写“《选择曲》胜过《淘汰曲》”，insight为35到70字的具体比较；closing为不超过45字的收尾。"
             ].join("\n")
           },
           { role: "user", content: JSON.stringify(profile) }
         ],
         thinking: { type: "enabled" },
         reasoning_effort: "high",
-        response_format: { type: "json_object" },
         max_tokens: 8000,
         stream: false
       })
@@ -185,7 +184,13 @@ async function handleAnalyze(request, env, origin) {
     return jsonResponse({ error: "DeepSeek 返回内容无法读取，请重试", code: "INVALID_UPSTREAM_JSON" }, 502, origin);
   }
 
-  const content = String(payload?.choices?.[0]?.message?.content || "").trim();
+  const message = payload?.choices?.[0]?.message || {};
+  const rawContent = message.content;
+  const content = (typeof rawContent === "string"
+    ? rawContent
+    : Array.isArray(rawContent)
+      ? rawContent.map(part => typeof part === "string" ? part : part?.text || "").join("")
+      : "").trim();
   if (!content) {
     return jsonResponse({ error: "DeepSeek 思考完成但没有生成正文，请重试", code: "EMPTY_UPSTREAM_CONTENT" }, 502, origin);
   }
